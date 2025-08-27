@@ -176,7 +176,7 @@ class CheckpointSaver(HookBase):
             if self.trainer.cfg.evaluate:
                 current_metric_value = self.trainer.comm_info["current_metric_value"]
                 current_metric_name = self.trainer.comm_info["current_metric_name"]
-                if current_metric_value > self.trainer.best_metric_value:
+                if current_metric_value < self.trainer.best_metric_value:
                     self.trainer.best_metric_value = current_metric_value
                     is_best = True
                     self.trainer.logger.info(

@@ -46,13 +46,9 @@ class DefaultSegmentorV2(nn.Module):
         freeze_backbone=False,
     ):
         super().__init__()
-        self.seg_head = (
-            nn.Linear(backbone_out_channels, num_classes)
-            if num_classes > 0
-            else nn.Identity()
-        )
+        self.seg_head = nn.Sequential(nn.Linear(backbone_out_channels, 1), nn.Softplus())
         self.backbone = build_model(backbone)
-        self.criteria = build_criteria(criteria)
+        self.criteria = torch.nn.SmoothL1Loss(beta=1.0)
         self.freeze_backbone = freeze_backbone
         if self.freeze_backbone:
             for p in self.backbone.parameters():
@@ -73,7 +69,7 @@ class DefaultSegmentorV2(nn.Module):
             feat = point.feat
         else:
             feat = point
-        seg_logits = self.seg_head(feat)
+        seg_logits = self.seg_head(feat).squeeze(-1)
         return_dict = dict()
         if return_point:
             # PCA evaluator parse feat and coord in point

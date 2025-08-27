@@ -29,6 +29,8 @@ from pointcept.utils.misc import (
     make_dirs,
 )
 
+from sklearn.metrics import mean_squared_error, root_mean_squared_error
+
 try:
     import pointops
 except:
@@ -127,9 +129,7 @@ class SemSegTester(TesterBase):
         logger.info(">>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>")
 
         batch_time = AverageMeter()
-        intersection_meter = AverageMeter()
-        union_meter = AverageMeter()
-        target_meter = AverageMeter()
+        accuracy_meter = AverageMeter()
         self.model.eval()
 
         save_path = os.path.join(self.cfg.save_path, "result")
@@ -183,7 +183,7 @@ class SemSegTester(TesterBase):
                 if "origin_segment" in data_dict.keys():
                     segment = data_dict["origin_segment"]
             else:
-                pred = torch.zeros((segment.size, self.cfg.data.num_classes)).cuda()
+                pred = torch.zeros(segment.size).cuda()
                 for i in range(len(fragment_list)):
                     fragment_batch_size = 1
                     s_i, e_i = i * fragment_batch_size, min(
@@ -196,12 +196,11 @@ class SemSegTester(TesterBase):
                     idx_part = input_dict["index"]
                     with torch.no_grad():
                         pred_part = self.model(input_dict)["seg_logits"]  # (n, k)
-                        pred_part = F.softmax(pred_part, -1)
                         if self.cfg.empty_cache:
                             torch.cuda.empty_cache()
                         bs = 0
                         for be in input_dict["offset"]:
-                            pred[idx_part[bs:be], :] += pred_part[bs:be]
+                            pred[idx_part[bs:be]] += pred_part[bs:be]
                             bs = be
 
                     logger.info(
@@ -213,23 +212,19 @@ class SemSegTester(TesterBase):
                             batch_num=len(fragment_list),
                         )
                     )
-                if self.cfg.data.test.type == "ScanNetPPDataset":
-                    pred = pred.topk(3, dim=1)[1].data.cpu().numpy()
-                else:
-                    pred = pred.max(1)[1].data.cpu().numpy()
+                pred = pred.cpu().numpy()
                 if "origin_segment" in data_dict.keys():
                     assert "inverse" in data_dict.keys()
                     pred = pred[data_dict["inverse"]]
                     segment = data_dict["origin_segment"]
-                np.save(pred_save_path, pred)
+                # np.save(pred_save_path, pred)
             if (
                 self.cfg.data.test.type == "ScanNetDataset"
-                or self.cfg.data.test.type == "ScanNet200Dataset"
             ):
                 np.savetxt(
-                    os.path.join(save_path, "submit", "{}.txt".format(data_name)),
-                    self.test_loader.dataset.class2id[pred].reshape([-1, 1]),
-                    fmt="%d",
+                    os.path.join(save_path, "submit", "{}".format(data_name.replace(".txt","_pred.txt"))),
+                    pred.reshape([-1, 1]),
+                    fmt="%f",
                 )
             elif self.cfg.data.test.type == "ScanNetPPDataset":
                 np.savetxt(
@@ -273,39 +268,21 @@ class SemSegTester(TesterBase):
                     )
                 )
 
-            intersection, union, target = intersection_and_union(
-                pred, segment, self.cfg.data.num_classes, self.cfg.data.ignore_index
-            )
-            intersection_meter.update(intersection)
-            union_meter.update(union)
-            target_meter.update(target)
-            record[data_name] = dict(
-                intersection=intersection, union=union, target=target
-            )
-
-            mask = union != 0
-            iou_class = intersection / (union + 1e-10)
-            iou = np.mean(iou_class[mask])
-            acc = sum(intersection) / (sum(target) + 1e-10)
-
-            m_iou = np.mean(intersection_meter.sum / (union_meter.sum + 1e-10))
-            m_acc = np.mean(intersection_meter.sum / (target_meter.sum + 1e-10))
+            rmse = root_mean_squared_error(segment, pred)
+            accuracy_meter.update(rmse)
+            record[data_name] = dict(rmse=rmse)
 
             batch_time.update(time.time() - start)
             logger.info(
                 "Test: {} [{}/{}]-{} "
                 "Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) "
-                "Accuracy {acc:.4f} ({m_acc:.4f}) "
-                "mIoU {iou:.4f} ({m_iou:.4f})".format(
+                "RMSE {rmse:.4f} ".format(
                     data_name,
                     idx + 1,
                     len(self.test_loader),
                     segment.size,
                     batch_time=batch_time,
-                    acc=acc,
-                    m_acc=m_acc,
-                    iou=iou,
-                    m_iou=m_iou,
+                    rmse = rmse
                 )
             )
 
@@ -319,38 +296,13 @@ class SemSegTester(TesterBase):
                 r = record_sync.pop()
                 record.update(r)
                 del r
-            intersection = np.sum(
-                [meters["intersection"] for _, meters in record.items()], axis=0
-            )
-            union = np.sum([meters["union"] for _, meters in record.items()], axis=0)
-            target = np.sum([meters["target"] for _, meters in record.items()], axis=0)
-
-            if self.cfg.data.test.type == "S3DISDataset":
-                torch.save(
-                    dict(intersection=intersection, union=union, target=target),
-                    os.path.join(save_path, f"{self.test_loader.dataset.split}.pth"),
-                )
-
-            iou_class = intersection / (union + 1e-10)
-            accuracy_class = intersection / (target + 1e-10)
-            mIoU = np.mean(iou_class)
-            mAcc = np.mean(accuracy_class)
-            allAcc = sum(intersection) / (sum(target) + 1e-10)
+            mean_rmse = np.mean([meters["rmse"] for _, meters in record.items()])
 
             logger.info(
-                "Val result: mIoU/mAcc/allAcc {:.4f}/{:.4f}/{:.4f}".format(
-                    mIoU, mAcc, allAcc
+                "Val result: RMSE {:.4f}".format(
+                    mean_rmse
                 )
             )
-            for i in range(self.cfg.data.num_classes):
-                logger.info(
-                    "Class_{idx} - {name} Result: iou/accuracy {iou:.4f}/{accuracy:.4f}".format(
-                        idx=i,
-                        name=self.cfg.data.names[i],
-                        iou=iou_class[i],
-                        accuracy=accuracy_class[i],
-                    )
-                )
             logger.info("<<<<<<<<<<<<<<<<< End Evaluation <<<<<<<<<<<<<<<<<")
 
     @staticmethod

@@ -58,51 +58,42 @@ class ScanNetDataset(DefaultDataset):
         data_path = self.data_list[idx % len(self.data_list)]
         name = self.get_data_name(idx)
         split = self.get_split_name(idx)
-        if self.cache:
-            cache_name = f"pointcept-{name}"
-            return shared_dict(cache_name)
 
         data_dict = {}
-        assets = os.listdir(data_path)
-        for asset in assets:
-            if not asset.endswith(".npy"):
-                continue
-            if asset[:-4] not in self.VALID_ASSETS:
-                continue
-            data_dict[asset[:-4]] = np.load(os.path.join(data_path, asset))
+        coords = []
+        colors = []
+        normals = []
+        distances = []
+
+        with open(data_path, "r") as f:
+            for line in f:
+                if line.startswith("//") or not line.strip():
+                    continue
+                parts = line.strip().split()
+                if len(parts) < 9:
+                    continue
+                x, y, z = map(float, parts[0:3])
+                r, g, b = map(int, parts[3:6])
+                rs, gs, bs = map(float, parts[6:9])
+                distance = float(parts[9])
+                if distance <= 0 or distance > 5:
+                    continue
+                coords.append([x, y, z])
+                colors.append([r, g, b])
+                normals.append([rs, gs, bs])
+                distances.append(distance)
+
+        coords = np.array(coords, dtype=np.float32)
+        colors = np.array(colors, dtype=np.float32) / 255.0
+        normals = np.array(normals, dtype=np.float32)
+        distances = np.array(distances, dtype=np.float32)
+
+        data_dict["coord"] = coords
+        data_dict["color"] = colors
+        data_dict["normal"] = normals
         data_dict["name"] = name
         data_dict["split"] = split
-        data_dict["coord"] = data_dict["coord"].astype(np.float32)
-        data_dict["color"] = data_dict["color"].astype(np.float32)
-        data_dict["normal"] = data_dict["normal"].astype(np.float32)
-
-        if "segment20" in data_dict.keys():
-            data_dict["segment"] = (
-                data_dict.pop("segment20").reshape([-1]).astype(np.int32)
-            )
-        elif "segment200" in data_dict.keys():
-            data_dict["segment"] = (
-                data_dict.pop("segment200").reshape([-1]).astype(np.int32)
-            )
-        else:
-            data_dict["segment"] = (
-                np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
-            )
-
-        if "instance" in data_dict.keys():
-            data_dict["instance"] = (
-                data_dict.pop("instance").reshape([-1]).astype(np.int32)
-            )
-        else:
-            data_dict["instance"] = (
-                np.ones(data_dict["coord"].shape[0], dtype=np.int32) * -1
-            )
-        if self.la:
-            sampled_index = self.la[self.get_data_name(idx)]
-            mask = np.ones_like(data_dict["segment"], dtype=bool)
-            mask[sampled_index] = False
-            data_dict["segment"][mask] = self.ignore_index
-            data_dict["sampled_index"] = sampled_index
+        data_dict["segment"] = distances
         return data_dict
 
 

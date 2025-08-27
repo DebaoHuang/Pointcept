@@ -66,7 +66,7 @@ def point_collate_fn(batch, mix_prob=0):
                     mask = batch["instance"][start : offset[i]] != -1
                     batch["instance"][start : offset[i]] += num_instance * mask
                 start = offset[i]
-        if "offset" in batch.keys():
+        if "offset" in batch.keys() and len(batch["offset"]) >= 3:
             batch["offset"] = torch.cat(
                 [batch["offset"][1:-1:2], batch["offset"][-1].unsqueeze(0)], dim=0
             )

@@ -75,6 +75,7 @@ class Collect(object):
             name = name.replace("_keys", "")
             assert isinstance(keys, Sequence)
             data[name] = torch.cat([data_dict[key].float() for key in keys], dim=1)
+            # data[name] = data_dict[keys].float()
         return data
 
 
@@ -267,8 +268,8 @@ class RandomRotate(object):
             data_dict["coord"] -= center
             data_dict["coord"] = np.dot(data_dict["coord"], np.transpose(rot_t))
             data_dict["coord"] += center
-        if "normal" in data_dict.keys():
-            data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
+        # if "normal" in data_dict.keys():
+        #     data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
         return data_dict
 
 
@@ -306,8 +307,8 @@ class RandomRotateTargetAngle(object):
             data_dict["coord"] -= center
             data_dict["coord"] = np.dot(data_dict["coord"], np.transpose(rot_t))
             data_dict["coord"] += center
-        if "normal" in data_dict.keys():
-            data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
+        # if "normal" in data_dict.keys():
+        #     data_dict["normal"] = np.dot(data_dict["normal"], np.transpose(rot_t))
         return data_dict
 
 
@@ -335,13 +336,13 @@ class RandomFlip(object):
         if np.random.rand() < self.p:
             if "coord" in data_dict.keys():
                 data_dict["coord"][:, 0] = -data_dict["coord"][:, 0]
-            if "normal" in data_dict.keys():
-                data_dict["normal"][:, 0] = -data_dict["normal"][:, 0]
+            # if "normal" in data_dict.keys():
+            #     data_dict["normal"][:, 0] = -data_dict["normal"][:, 0]
         if np.random.rand() < self.p:
             if "coord" in data_dict.keys():
                 data_dict["coord"][:, 1] = -data_dict["coord"][:, 1]
-            if "normal" in data_dict.keys():
-                data_dict["normal"][:, 1] = -data_dict["normal"][:, 1]
+            # if "normal" in data_dict.keys():
+            #     data_dict["normal"][:, 1] = -data_dict["normal"][:, 1]
         return data_dict
 
 
