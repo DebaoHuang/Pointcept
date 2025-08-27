@@ -128,7 +128,7 @@ class Trainer(TrainerBase):
         self.epoch = 0
         self.start_epoch = 0
         self.max_epoch = cfg.eval_epoch
-        self.best_metric_value = -torch.inf
+        self.best_metric_value = torch.inf
         self.logger = get_root_logger(
             log_file=os.path.join(cfg.save_path, "train.log"),
             file_mode="a" if cfg.resume else "w",
