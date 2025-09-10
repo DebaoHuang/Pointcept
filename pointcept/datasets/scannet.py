@@ -62,7 +62,7 @@ class ScanNetDataset(DefaultDataset):
         data_dict = {}
         coords = []
         colors = []
-        normals = []
+        # normals = []
         distances = []
 
         with open(data_path, "r") as f:
@@ -70,27 +70,28 @@ class ScanNetDataset(DefaultDataset):
                 if line.startswith("//") or not line.strip():
                     continue
                 parts = line.strip().split()
-                if len(parts) < 9:
-                    continue
+                # if len(parts) < 9:
+                #     continue
                 x, y, z = map(float, parts[0:3])
                 r, g, b = map(int, parts[3:6])
-                rs, gs, bs = map(float, parts[6:9])
-                distance = float(parts[9])
-                if distance <= 0 or distance > 5:
+                # rs, gs, bs = map(float, parts[6:9])
+                distance = float(parts[6])
+
+                if distance <= 0 or distance > 5 or np.isnan(distance):
                     continue
                 coords.append([x, y, z])
                 colors.append([r, g, b])
-                normals.append([rs, gs, bs])
+                # normals.append([rs, gs, bs])
                 distances.append(distance)
 
         coords = np.array(coords, dtype=np.float32)
         colors = np.array(colors, dtype=np.float32) / 255.0
-        normals = np.array(normals, dtype=np.float32)
+        # normals = np.array(normals, dtype=np.float32)
         distances = np.array(distances, dtype=np.float32)
 
         data_dict["coord"] = coords
         data_dict["color"] = colors
-        data_dict["normal"] = normals
+        # data_dict["normal"] = normals
         data_dict["name"] = name
         data_dict["split"] = split
         data_dict["segment"] = distances

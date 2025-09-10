@@ -1,7 +1,7 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 2  # bs: total bs in all gpus
+batch_size = 3  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
 empty_cache = False
@@ -14,7 +14,7 @@ model = dict(
     backbone_out_channels=64,
     backbone=dict(
         type="PT-v3m1",
-        in_channels=6,
+        in_channels=3,
         order=("z", "z-trans", "hilbert", "hilbert-trans"),
         stride=(2, 2, 2, 2),
         enc_depths=(2, 2, 2, 6, 2),
@@ -52,21 +52,21 @@ model = dict(
 )
 
 # scheduler settings
-epoch = 100
-optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.01)
+epoch = 800
+optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
-    max_lr=[0.001, 0.0001],
+    max_lr=[0.006, 0.0006],
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
-    final_div_factor=300.0,
+    final_div_factor=1000.0,
 )
-param_dicts = [dict(keyword="block", lr=0.0001)]
+param_dicts = [dict(keyword="block", lr=0.0006)]
 
 # dataset settings
 dataset_type = "ScanNetDataset"
-data_root = "data/scannet"
+data_root = "data/scannet_rgb"
 
 data = dict(
     num_classes=1,
@@ -112,7 +112,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color"),
             ),
         ],
         test_mode=False,
@@ -138,7 +138,7 @@ data = dict(
             dict(
                 type="Collect",
                 keys=("coord", "grid_coord", "segment", "origin_segment", "inverse"),
-                feat_keys=("color", "normal"),
+                feat_keys=("color"),
             ),
         ],
         test_mode=False,
@@ -167,7 +167,7 @@ data = dict(
                 dict(
                     type="Collect",
                     keys=("coord", "grid_coord", "index"),
-                    feat_keys=("color", "normal"),
+                    feat_keys=("color"),
                 ),
             ],
             aug_transform=[
