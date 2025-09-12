@@ -48,7 +48,7 @@ class DefaultSegmentorV2(nn.Module):
         super().__init__()
         self.seg_head = nn.Sequential(nn.Linear(backbone_out_channels, 1), nn.Softplus())
         self.backbone = build_model(backbone)
-        self.criteria = torch.nn.SmoothL1Loss(beta=1.0)
+        self.criteria = torch.nn.HuberLoss(delta=1.0)
         self.freeze_backbone = freeze_backbone
         if self.freeze_backbone:
             for p in self.backbone.parameters():

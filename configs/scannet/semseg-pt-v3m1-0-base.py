@@ -1,11 +1,11 @@
 _base_ = ["../_base_/default_runtime.py"]
 
 # misc custom setting
-batch_size = 3  # bs: total bs in all gpus
+batch_size = 6  # bs: total bs in all gpus
 num_worker = 24
 mix_prob = 0.8
 empty_cache = False
-enable_amp = True
+enable_amp = False
 
 # model settings
 model = dict(
@@ -20,11 +20,11 @@ model = dict(
         enc_depths=(2, 2, 2, 6, 2),
         enc_channels=(32, 64, 128, 256, 512),
         enc_num_head=(2, 4, 8, 16, 32),
-        enc_patch_size=(1024, 1024, 1024, 1024, 1024),
+        enc_patch_size=(512, 512, 512, 512, 512),
         dec_depths=(2, 2, 2, 2),
         dec_channels=(64, 64, 128, 256),
         dec_num_head=(4, 4, 8, 16),
-        dec_patch_size=(1024, 1024, 1024, 1024),
+        dec_patch_size=(512, 512, 512, 512),
         mlp_ratio=4,
         qkv_bias=True,
         qk_scale=None,
@@ -53,10 +53,10 @@ model = dict(
 
 # scheduler settings
 epoch = 800
-optimizer = dict(type="AdamW", lr=0.006, weight_decay=0.05)
+optimizer = dict(type="AdamW", lr=0.001, weight_decay=0.05)
 scheduler = dict(
     type="OneCycleLR",
-    max_lr=[0.006, 0.0006],
+    max_lr=[0.001, 0.0006],
     pct_start=0.05,
     anneal_strategy="cos",
     div_factor=10.0,
@@ -99,7 +99,7 @@ data = dict(
             # dict(type="RandomColorDrop", p=0.2, color_augment=0.0),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.1,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -126,7 +126,7 @@ data = dict(
             dict(type="Copy", keys_dict={"segment": "origin_segment"}),
             dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.1,
                 hash_type="fnv",
                 mode="train",
                 return_grid_coord=True,
@@ -155,7 +155,7 @@ data = dict(
         test_cfg=dict(
             voxelize=dict(
                 type="GridSample",
-                grid_size=0.02,
+                grid_size=0.1,
                 hash_type="fnv",
                 mode="test",
                 return_grid_coord=True,
